@@ -1,0 +1,103 @@
+import logging
+import speech_recognition as sr
+import pyttsx3
+import datetime
+from youtube_search import YoutubeSearch
+import pytube
+from pydub import AudioSegment
+from pydub.playback import play
+
+# Configuración del registro de logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Configuración de pyttsx3
+engine = pyttsx3.init()
+
+# Configuración del reconocimiento de voz
+recognizer = sr.Recognizer()
+
+# Función para obtener entrada de voz
+def get_voice_input():
+    with sr.Microphone() as source:
+        print("Diga algo...")
+        recognizer.adjust_for_ambient_noise(source)
+        audio = recognizer.listen(source)
+
+    try:
+        text = recognizer.recognize_google(audio, language="es-ES")
+        print("Has dicho:", text)
+        return text.lower()  # Convertir a minúsculas para facilitar la comparación
+    except sr.UnknownValueError:
+        print("Lo siento, no entendí lo que dijiste.")
+        return ""
+    except sr.RequestError as e:
+        print("Error en la solicitud; {0}".format(e))
+        return ""
+
+# Función para generar salida de voz
+def speak(text):
+    print("Alexa dice:", text)
+    engine.say(text)
+    engine.runAndWait()
+
+# Función para reproducir música de YouTube
+def play_youtube_music(video_url):
+    try:
+        yt = pytube.YouTube(video_url)
+        audio_stream = yt.streams.filter(only_audio=True).first()
+        audio_path = audio_stream.download(filename="temp_audio")
+        audio = AudioSegment.from_file(audio_path)
+        play(audio)
+    except Exception as e:
+        print("Error al reproducir la música:", str(e))
+
+# Función para buscar música en YouTube
+def search_youtube_music(query):
+    try:
+        results = YoutubeSearch(query, max_results=1).to_dict()
+        if results:
+            video_url = "https://www.youtube.com" + results[0]['url_suffix']
+            return video_url
+        else:
+            return None
+    except Exception as e:
+        print("Error al buscar la música:", str(e))
+        return None
+
+# Función para obtener la hora actual
+def get_current_time():
+    now = datetime.datetime.now()
+    current_time = now.strftime("%H:%M")
+    speak("La hora actual es " + current_time)
+
+# Función principal
+def main():
+    speak("¡Hola! Soy tu asistente virtual. ¿En qué puedo ayudarte?")
+    while True:
+        input_text = get_voice_input()
+        if "hola" in input_text:
+            speak("¡Hola! ¿Cómo estás?")
+        elif "bien" in input_text or "genial" in input_text:
+            speak("Me alegra escuchar eso.")
+        elif "mal" in input_text or "triste" in input_text:
+            speak("Espero que te sientas mejor pronto.")
+        elif "reproducir música" in input_text:
+            speak("¿Qué música quieres que reproduzca?")
+            query = get_voice_input()
+            video_url = search_youtube_music(query)
+            if video_url:
+                speak("Reproduciendo " + query)
+                play_youtube_music(video_url)
+            else:
+                speak("Lo siento, no pude encontrar esa música.")
+        elif "hora" in input_text:
+            get_current_time()
+        elif "adiós" in input_text or "chao" in input_text:
+            speak("¡Hasta luego!")
+            break
+        else:
+            speak("Lo siento, no entendí lo que dijiste.")
+
+if __name__ == "__main__":
+    main()
