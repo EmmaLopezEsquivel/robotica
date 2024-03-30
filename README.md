@@ -1,0 +1,2 @@
+# robotica
+codigo alexa python
